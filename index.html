@@ -208,22 +208,33 @@ function editRecord(i) {
   document.body.appendChild(modal);
 }
 
-async function saveEdit(i) {
+async function saveEdit(index) {
+  // listedeki satır numarasını backend'e gönder
+  const rowIndex = window.lastData[index].rowIndex; // ✅ doğru satır numarası
+
   const updated = {
     action: "update",
-    row: i + 1,
-    adSoyad: document.getElementById("editAd").value,
-    cins: document.getElementById("editCins").value,
-    renk: document.getElementById("editRenk").value,
-    bilezik: document.getElementById("editBilezik").value,
+    rowIndex, // ✅ burası önemli
+    adSoyad: document.getElementById("editAd").value.trim(),
+    cins: document.getElementById("editCins").value.trim(),
+    renk: document.getElementById("editRenk").value.trim(),
+    bilezik: document.getElementById("editBilezik").value.trim(),
   };
-  const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(updated) });
+
+  const res = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(updated),
+  });
+
   const text = await res.text();
+
   if (text === "OK") {
     alert("✅ Kayıt güncellendi!");
-    document.querySelector(".modal").remove();
+    closeModal();
     getRecords();
-  } else alert("❌ Hata: " + text);
+  } else {
+    alert("❌ Hata: " + text);
+  }
 }
 
 document.getElementById("listeleBtn").addEventListener("click", getRecords);
