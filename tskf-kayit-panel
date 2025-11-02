@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TSHF | Kayıt Düzenleme Paneli</title>
+<style>
+body {
+  background: linear-gradient(135deg, #007bff, #00c6ff);
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: 50px auto;
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.2);
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+h2 {
+  margin-bottom: 20px;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+}
+
+label {
+  display: block;
+  text-align: left;
+  margin-top: 15px;
+  font-weight: 600;
+}
+
+select, input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.9);
+}
+
+button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+button:hover { background: linear-gradient(135deg, #0056b3, #003d80); }
+
+.results { margin-top: 25px; }
+.table-container {
+  overflow-x: auto;
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #fff;
+  font-size: 14px;
+}
+th {
+  background: rgba(0,0,0,0.4);
+  padding: 10px;
+}
+td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.edit-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: rgba(255,255,255,0.9);
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  color: #333;
+}
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>🪶 TSHF Kayıt Düzenleme Paneli</h2>
+
+  <label for="dernekSelect">Dernek Seç:</label>
+  <select id="dernekSelect"><option>Dernek listesi yükleniyor...</option></select>
+
+  <label for="adInput">Ad Soyad:</label>
+  <input id="adInput" placeholder="Ad ve Soyad giriniz..." type="text" />
+
+  <button id="listeleBtn">Kayıtları Listele</button>
+  <div class="results"></div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbye0QhSU6VNyORVhPe-gNHcBI_Tp2jhz_w8lj8R4PjBMuUPqfDJNoHTXpzQovQhcmUsCA/exec";
+
+async function loadDernekler() {
+  try {
+    const res = await fetch(API_URL + "?action=dernekler");
+    const data = await res.json();
+    const select = document.getElementById("dernekSelect");
+    select.innerHTML = '<option value="">Dernek Seç...</option>';
+    data.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d; opt.textContent = d; select.appendChild(opt);
+    });
+  } catch {
+    document.getElementById("dernekSelect").innerHTML = "<option>❌ Dernek listesi yüklenemedi</option>";
+  }
+}
+
+async function getRecords() {
+  const dernek = document.getElementById("dernekSelect").value;
+  const ad = document.getElementById("adInput").value.trim();
+  if (!dernek || !ad) return alert("⚠️ Lütfen dernek seçip ad soyad giriniz!");
+  const res = await fetch(`${API_URL}?action=get&dernek=${encodeURIComponent(dernek)}&ad=${encodeURIComponent(ad)}`);
+  const data = await res.json();
+  if (!data.length) {
+    document.querySelector(".results").innerHTML = "<p style='color:yellow;text-align:center;'>❌ Kayıt bulunamadı.</p>";
+    return;
+  }
+  renderTable(data);
+}
+
+function renderTable(data) {
+  const tableContainer = document.createElement("div");
+  tableContainer.className = "table-container";
+  tableContainer.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Tarih</th><th>Ad Soyad</th><th>Irk</th><th>Cins</th><th>Renk</th><th>Bilezik</th><th>İşlem</th></tr>
+      </thead>
+      <tbody>
+        ${data.map((r,i)=>`
+          <tr>
+            <td>${r.kayitTarihi}</td>
+            <td>${r.adSoyad}</td>
+            <td>${r.irk}</td>
+            <td>${r.cins}</td>
+            <td>${r.renk}</td>
+            <td>${r.bilezik}</td>
+            <td><button class="edit-btn" onclick="editRecord(${i})">🖋</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  document.querySelector(".results").innerHTML = "";
+  document.querySelector(".results").appendChild(tableContainer);
+}
+
+function editRecord(i) {
+  const row = window.lastData[i];
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>Kayıt Güncelle</h3>
+      <label>Ad Soyad:</label><input id="editAd" value="${row.adSoyad}">
+      <label>Cins:</label><input id="editCins" value="${row.cins}">
+      <label>Renk:</label><input id="editRenk" value="${row.renk}">
+      <label>Bilezik:</label><input id="editBilezik" value="${row.bilezik}">
+      <div class="modal-buttons">
+        <button onclick="saveEdit(${i})">Kaydet</button>
+        <button onclick="document.querySelector('.modal').remove()">Kapat</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveEdit(i) {
+  const updated = {
+    action: "update",
+    row: i + 1,
+    adSoyad: document.getElementById("editAd").value,
+    cins: document.getElementById("editCins").value,
+    renk: document.getElementById("editRenk").value,
+    bilezik: document.getElementById("editBilezik").value,
+  };
+  const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(updated) });
+  const text = await res.text();
+  if (text === "OK") {
+    alert("✅ Kayıt güncellendi!");
+    document.querySelector(".modal").remove();
+    getRecords();
+  } else alert("❌ Hata: " + text);
+}
+
+document.getElementById("listeleBtn").addEventListener("click", getRecords);
+loadDernekler();
+</script>
+</body>
+</html>
